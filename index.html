@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>أذكار</title>
+    
+    <meta name="theme-color" content="#386a20">
+    <meta name="description" content="تطبيق أذكار يومي ومواقيت الصلاة وحصن المسلم">
+    <link rel="manifest" href="./manifest.json">
+    
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="أذكار">
+
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --md-surface: #f7fbf2;
+            --md-surface-container: #edf3e8;
+            --md-primary: #386a20;
+            --md-on-primary: #ffffff;
+            --md-primary-container: #b7f397;
+            --md-on-primary-container: #042100;
+            --md-text: #191d17;
+            --md-border: #c2c8bc;
+            --md-error: #ba1a1a;
+            --radius-xl: 28px;
+            --zekr-size: 1.2rem;
+            
+            --card-morning: linear-gradient(135deg, #FF9966 0%, #FF5E62 100%);
+            --card-evening: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
+            --card-sleep: linear-gradient(135deg, #6441A5 0%, #2a0845 100%);
+            --card-prayer: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        [data-theme="dark"] {
+            --md-surface: #11140e;
+            --md-surface-container: #1d2119;
+            --md-primary: #9cd67d;
+            --md-on-primary: #0c3900;
+            --md-primary-container: #205107;
+            --md-on-primary-container: #b7f397;
+            --md-text: #e2e3dd;
+            --md-border: #44473f;
+            --md-error: #ffb4ab;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Cairo', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        body { background-color: var(--md-surface); color: var(--md-text); min-height: 100vh; padding-bottom: 100px; overflow-x: hidden; }
+
+        /* --- شاشة البداية (Splash Screen) --- */
+        #splash-screen {
+            position: fixed; inset: 0; background: var(--md-primary);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; transition: opacity 0.8s ease, visibility 0.8s;
+        }
+        .splash-logo {
+            width: 120px; height: 120px; background: white; border-radius: 35% 65% 64% 36% / 30% 30% 70% 70%;
+            display: grid; place-items: center; font-size: 4rem; color: var(--md-primary);
+            animation: morph 3s infinite alternate, pulse 2s infinite;
+        }
+        .splash-title { color: white; margin-top: 20px; font-size: 2.5rem; font-weight: 800; letter-spacing: 2px; opacity: 0; animation: fadeInUp 1s forwards 0.5s; }
+        
+        @keyframes morph { 0% { border-radius: 35% 65% 64% 36% / 30% 30% 70% 70%; } 100% { border-radius: 65% 35% 34% 66% / 70% 70% 30% 30%; } }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255,255,255,0); } 100% { transform: scale(1); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- الواجهة الرئيسية --- */
+        .m3-top-bar { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--md-surface); z-index: 90; }
+        .m3-icon-button { width: 48px; height: 48px; border-radius: 50%; border: none; background: transparent; color: var(--md-text); font-size: 1.2rem; cursor: pointer; }
+        .notif-active { color: var(--md-primary); position: relative; }
+        .notif-active::after { content: ''; position: absolute; top: 12px; right: 12px; width: 8px; height: 8px; background: #ff5252; border-radius: 50%; border: 2px solid var(--md-surface); }
+
+        .container { padding: 10px 16px; }
+        .home-grid { display: grid; grid-template-columns: 1fr; gap: 16px; animation: fadeIn 0.5s ease-out; }
+
+        .category-card {
+            height: 140px; border-radius: var(--radius-xl); padding: 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            color: white; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .category-card:active { transform: scale(0.96); }
+        .bg-morning { background: var(--card-morning); }
+        .bg-evening { background: var(--card-evening); }
+        .bg-sleep { background: var(--card-sleep); }
+
+        /* تحديث: تصميم البطاقة مع الترقيم */
+        .m3-card { 
+            background: var(--md-surface-container); border-radius: var(--radius-xl); 
+            padding: 24px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 16px; 
+            position: relative; cursor: pointer; transition: 0.2s;
+        }
+        .m3-card:active { transform: scale(0.98); }
+        .zekr-number-badge {
+            position: absolute; top: 20px; left: 20px;
+            background: var(--md-surface); color: var(--md-primary);
+            width: 30px; height: 30px; border-radius: 50%;
+            display: grid; place-items: center; font-weight: bold; font-size: 0.9rem;
+            opacity: 0.7; border: 1px solid var(--md-border);
+        }
+
+        .zekr-content { font-size: var(--zekr-size); line-height: 1.6; font-weight: 600; }
+
+        .counter-btn { min-width: 80px; height: 50px; border-radius: 16px; background: var(--md-primary); color: white; border: none; font-weight: 800; font-size: 1.2rem; cursor: pointer; }
+        .counter-btn.done { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+
+        /* --- تصميم المواقيت (M3) --- */
+        .prayers-list { display: flex; flex-direction: column; gap: 12px; }
+        
+        .prayer-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px; background: var(--md-surface-container);
+            border-radius: 24px; border: 1px solid transparent;
+            transition: all 0.3s cubic-bezier(0.2, 0.0, 0, 1.0);
+        }
+
+        .prayer-info { display: flex; align-items: center; gap: 16px; }
+        .prayer-icon-box {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--md-surface); color: var(--md-text);
+            display: grid; place-items: center; font-size: 1.1rem;
+            transition: 0.3s;
+        }
+        .prayer-name { font-size: 1.1rem; font-weight: 700; }
+        .prayer-time {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 600; font-size: 1.2rem;
+            background: var(--md-surface); padding: 6px 14px; border-radius: 12px;
+        }
+
+        .prayer-item.active {
+            background: var(--md-primary-container); color: var(--md-on-primary-container);
+            transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--md-primary);
+        }
+        .prayer-item.active .prayer-icon-box { background: var(--md-primary); color: var(--md-on-primary); }
+        .prayer-item.active .prayer-time { background: rgba(255, 255, 255, 0.4); color: var(--md-on-primary-container); }
+        [data-theme="dark"] .prayer-item.active .prayer-time { background: rgba(0, 0, 0, 0.2); }
+
+        /* --- شريط التنقل السفلي --- */
+        .m3-nav { position: fixed; bottom: 0; width: 100%; height: 80px; background: var(--md-surface-container); display: flex; justify-content: space-around; align-items: center; border-radius: var(--radius-xl) var(--radius-xl) 0 0; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.6; transition: 0.3s; }
+        .nav-item.active { opacity: 1; }
+        .nav-icon { width: 60px; height: 32px; border-radius: 16px; display: grid; place-items: center; font-size: 1.2rem; }
+        .nav-item.active .nav-icon { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+
+        /* --- نافذة الذكر الموسعة (Zekr Modal) --- */
+        .zekr-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            z-index: 2000; display: none; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .zekr-modal.show { display: flex; opacity: 1; }
+        
+        .zekr-modal-content {
+            background: var(--md-surface); width: 90%; max-width: 500px;
+            border-radius: 30px; padding: 30px;
+            display: flex; flex-direction: column; align-items: center;
+            position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-height: 90vh; overflow-y: auto;
+        }
+        .zekr-modal.show .zekr-modal-content { transform: scale(1); }
+
+        .modal-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-close-btn { background: var(--md-surface-container); border: none; width: 40px; height: 40px; border-radius: 50%; color: var(--md-text); cursor: pointer; font-size: 1.2rem; }
+        
+        .modal-text {
+            font-size: 1.5rem; text-align: center; line-height: 1.8; margin-bottom: 30px; font-weight: 700; width: 100%;
+        }
+
+        /* حلقة التسبيح الدائرية */
+        .progress-ring-container { position: relative; width: 150px; height: 150px; margin-bottom: 20px; cursor: pointer; -webkit-tap-highlight-color: transparent;}
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s; transform: rotate(-90deg); transform-origin: 50% 50%;
+            stroke: var(--md-primary);
+        }
+        .ring-bg { stroke: var(--md-surface-container); }
+        .ring-text {
+            position: absolute; inset: 0; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; pointer-events: none;
+        }
+        .ring-count { font-size: 2.5rem; font-weight: 800; color: var(--md-primary); }
+        .ring-total { font-size: 1rem; opacity: 0.6; }
+
+        .modal-actions { display: flex; gap: 20px; width: 100%; justify-content: center; }
+        .modal-action-btn {
+            background: var(--md-surface-container); border: none; padding: 12px 20px;
+            border-radius: 16px; color: var(--md-text); font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* --- الإعدادات --- */
+        #settings-sheet { position: fixed; bottom: -100%; left: 0; right: 0; background: var(--md-surface-container); padding: 30px; border-radius: 30px 30px 0 0; z-index: 200; transition: 0.4s; max-height: 85vh; overflow-y: auto; }
+        #settings-sheet.open { bottom: 0; }
+        .theme-selector { display: flex; background: rgba(0,0,0,0.05); padding: 5px; border-radius: 16px; gap: 5px; margin-top: 10px; }
+        .theme-opt { flex: 1; padding: 12px; text-align: center; border-radius: 12px; font-size: 0.9rem; cursor: pointer; }
+        .theme-opt.active { background: var(--md-primary); color: white; }
+        .font-preview-box { background: var(--md-surface); border: 1px solid var(--md-border); padding: 20px; border-radius: 16px; text-align: center; margin-bottom: 15px; }
+        .range-slider { width: 100%; -webkit-appearance: none; height: 6px; background: #ddd; border-radius: 5px; outline: none; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--md-primary); cursor: pointer; }
+
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 150; }
+        #toast { visibility: hidden; min-width: 200px; background: #333; color: #fff; text-align: center; border-radius: 50px; padding: 16px; position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); z-index: 2100; }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- نافذة تثبيت التطبيق PWA Install Styles --- */
+        #pwa-install-banner {
+            position: fixed; top: 20px; left: 16px; right: 16px;
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-primary-container);
+            border-radius: 24px; padding: 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            z-index: 9999;
+            transform: translateY(-150%);
+            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #pwa-install-banner.visible { transform: translateY(0); }
+        
+        .pwa-content { display: flex; align-items: center; gap: 15px; }
+        .pwa-icon { 
+            width: 48px; height: 48px; background: var(--md-primary); 
+            color: white; border-radius: 14px; 
+            display: grid; place-items: center; font-size: 1.5rem; 
+        }
+        .pwa-text h4 { font-size: 1rem; color: var(--md-text); margin-bottom: 2px; }
+        .pwa-text p { font-size: 0.75rem; color: var(--md-text); opacity: 0.7; }
+        
+        .pwa-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-install { 
+            background: var(--md-primary); color: white; border: none; 
+            padding: 8px 16px; border-radius: 50px; font-weight: bold; font-size: 0.85rem; 
+            cursor: pointer;
+        }
+        .btn-dismiss { 
+            background: transparent; border: none; color: var(--md-text); 
+            opacity: 0.5; font-size: 1.2rem; cursor: pointer; padding: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="splash-logo"><i class="fas fa-kaaba"></i></div>
+        <div class="splash-title">أذكار</div>
+    </div>
+
+    <div id="pwa-install-banner">
+        <div class="pwa-content">
+            <div class="pwa-icon"><i class="fas fa-kaaba"></i></div>
+            <div class="pwa-text">
+                <h4>تثبيت التطبيق</h4>
+                <p>لسهولة الوصول والتذكير اليومي</p>
+            </div>
+        </div>
+        <div class="pwa-actions">
+            <button class="btn-install" onclick="installPwa()">تثبيت</button>
+            <button class="btn-dismiss" onclick="dismissInstall()"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <header class="m3-top-bar" id="header"></header>
+
+    <main class="container" id="main-container"></main>
+
+    <nav class="m3-nav">
+        <div class="nav-item active" onclick="navigate('home')" id="nav-home">
+            <div class="nav-icon"><i class="fas fa-home"></i></div>
+            <span class="nav-text" style="font-size: 0.7rem; font-weight: bold;">الرئيسية</span>
+        </div>
+        <div class="nav-item" onclick="navigate('prayers')" id="nav-prayers">
+            <div class="nav-icon"><i class="fas fa-mosque"></i></div>
+            <span class="nav-text" style="font-size: 0.7rem; font-weight: bold;">المواقيت</span>
+        </div>
+        <div class="nav-item" onclick="navigate('favorites')" id="nav-favorites">
+            <div class="nav-icon"><i class="fas fa-heart"></i></div>
+            <span class="nav-text" style="font-size: 0.7rem; font-weight: bold;">المفضلة</span>
+        </div>
+    </nav>
+
+    <div class="overlay" id="overlay" onclick="closeSettings()"></div>
+    
+    <div id="settings-sheet">
+        <div style="width: 40px; height: 4px; background: grey; margin: 0 auto 20px; border-radius: 2px; opacity: 0.3;"></div>
+        <h3 style="text-align: center; margin-bottom: 25px;">الإعدادات</h3>
+        
+        <div style="margin-bottom: 25px;">
+            <p style="font-size: 0.9rem; font-weight: bold; opacity: 0.7;">المظهر</p>
+            <div class="theme-selector">
+                <div class="theme-opt" id="theme-auto" onclick="setTheme('auto')">تلقائي</div>
+                <div class="theme-opt" id="theme-light" onclick="setTheme('light')">فاتح</div>
+                <div class="theme-opt" id="theme-dark" onclick="setTheme('dark')">داكن</div>
+            </div>
+        </div>
+
+        <div>
+            <p style="font-size: 0.9rem; font-weight: bold; opacity: 0.7; margin-bottom: 10px;">حجم الخط (معاينة)</p>
+            <div class="font-preview-box">
+                <div class="zekr-content">اللهم بك أصبحنا وبك أمسينا</div>
+            </div>
+            <input type="range" min="1" max="2.2" step="0.1" value="1.2" class="range-slider" id="font-slider" oninput="changeFontSize(this.value)">
+        </div>
+        
+        <button onclick="resetAll()" style="width: 100%; padding: 15px; margin-top: 30px; border: none; border-radius: 15px; color: #ba1a1a; background: rgba(186, 26, 26, 0.1); font-weight: bold;">تصفير البيانات</button>
+    </div>
+
+    <div class="zekr-modal" id="zekr-modal">
+        <div class="zekr-modal-content">
+            <div class="modal-header">
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-size:0.8rem; opacity:0.6; font-weight:bold;">ذكر رقم</span>
+                    <span id="modal-zekr-number" style="font-size:1.5rem; font-weight:900; color:var(--md-primary)">#1</span>
+                </div>
+                <button class="modal-close-btn" onclick="closeZekrModal()"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div id="modal-zekr-text" class="modal-text">نص الذكر هنا</div>
+
+            <div class="progress-ring-container" id="modal-tap-area" onclick="modalTap()">
+                <svg width="150" height="150">
+                    <circle class="ring-bg" stroke-width="8" fill="transparent" r="60" cx="75" cy="75" />
+                    <circle class="progress-ring-circle" id="progress-circle" stroke-width="8" fill="transparent" r="60" cx="75" cy="75" stroke-linecap="round" />
+                </svg>
+                <div class="ring-text">
+                    <span id="modal-current-count" class="ring-count">0</span>
+                    <span id="modal-total-count" class="ring-total">/ 3</span>
+                </div>
+            </div>
+            <p style="opacity:0.5; font-size:0.8rem; margin-bottom:20px;">اضغط على الدائرة للتسبيح</p>
+
+            <div class="modal-actions">
+                <button class="modal-action-btn" onclick="copyModalText()"><i class="far fa-copy"></i> نسخ</button>
+                <button class="modal-action-btn" onclick="toggleFavModal()" id="modal-fav-btn"><i class="far fa-heart"></i> مفضلة</button>
+                <button class="modal-action-btn" onclick="resetModalCounter()" style="color:var(--md-error)"><i class="fas fa-redo"></i> تصفير</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">تم النسخ</div>
+
+    <script>
+        const azkarData = {
+            morning: [
+                { id: 101, text: "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لا إِلَهَ إِلا اللَّهُ وَحْدَهُ لا شَرِيكَ لَهُ.", count: 1 },
+                { id: 102, text: "سُبْحَانَ اللهِ وَبِحَمْدِهِ: عَدَدَ خَلْقِهِ، وَرِضَا نَفْسِهِ، وَزِنَةَ عَرْشِهِ.", count: 3 }
+            ],
+            evening: [
+                { id: 201, text: "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ.", count: 1 },
+                { id: 202, text: "أَعُوذُ بِكَلِمَاتِ اللهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ.", count: 3 }
+            ],
+            sleep: [
+                { id: 301, text: "بِاسْمِكَ رَبِّي وَضَعْتُ جَنْبِي، وَبِكَ أَرْفَعُهُ.", count: 1 }
+            ]
+        };
+
+        let currentView = 'home';
+        let progress = JSON.parse(localStorage.getItem('m3_progress')) || {};
+        let favorites = JSON.parse(localStorage.getItem('m3_favorites')) || [];
+        let prayerTimesData = null;
+        let countdownInterval = null;
+        let notificationsEnabled = localStorage.getItem('m3_notif') === 'true';
+        let deferredPrompt;
+        let currentModalZekr = null; // لتخزين الذكر المفتوح حالياً في النافذة
+        
+        let currentCityName = "جاري تحديد الموقع...";
+        let nextPrayerKey = null;
+
+        // PWA Setup
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(console.error);
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            setTimeout(() => {
+                if(!sessionStorage.getItem('install_dismissed')) {
+                    document.getElementById('pwa-install-banner').classList.add('visible');
+                }
+            }, 4000);
+        });
+
+        async function installPwa() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') deferredPrompt = null;
+                document.getElementById('pwa-install-banner').classList.remove('visible');
+            }
+        }
+
+        function dismissInstall() {
+            document.getElementById('pwa-install-banner').classList.remove('visible');
+            sessionStorage.setItem('install_dismissed', 'true');
+        }
+
+        window.onload = () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.style.opacity = '0';
+                setTimeout(() => splash.style.visibility = 'hidden', 800);
+            }, 3000);
+
+            if (!history.state) history.replaceState({view: 'home'}, '', '');
+            window.onpopstate = (event) => {
+                if(document.getElementById('zekr-modal').classList.contains('show')) {
+                    closeZekrModal();
+                    // دفع الحالة مرة أخرى لمنع الرجوع الفعلي للصفحة السابقة
+                    history.pushState({view: currentView}, '', '');
+                    return;
+                }
+                currentView = (event.state && event.state.view) ? event.state.view : 'home';
+                updateNavUI();
+                render();
+            };
+
+            initThemeSystem();
+            initFontSize();
+            render();
+            updateNavUI();
+        };
+
+        function updateNavUI() {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const map = {'home': 'nav-home', 'prayers': 'nav-prayers', 'favorites': 'nav-favorites'};
+            if(map[currentView]) {
+                const el = document.getElementById(map[currentView]);
+                if(el) el.classList.add('active');
+            }
+        }
+
+        function initThemeSystem() {
+            const mode = localStorage.getItem('m3_theme_mode') || 'auto';
+            setTheme(mode);
+            window.matchMedia("(prefers-color-scheme: dark)").addListener(e => {
+                if(localStorage.getItem('m3_theme_mode') === 'auto') applyThemeStyle(e.matches ? 'dark' : 'light');
+            });
+        }
+
+        function setTheme(mode) {
+            localStorage.setItem('m3_theme_mode', mode);
+            document.querySelectorAll('.theme-opt').forEach(el => el.classList.remove('active'));
+            document.getElementById(`theme-${mode}`).classList.add('active');
+            if(mode === 'auto') applyThemeStyle(window.matchMedia("(prefers-color-scheme: dark)").matches ? 'dark' : 'light');
+            else applyThemeStyle(mode);
+        }
+
+        function applyThemeStyle(s) { s === 'dark' ? document.body.setAttribute('data-theme', 'dark') : document.body.removeAttribute('data-theme'); }
+        function initFontSize() {
+            const s = localStorage.getItem('m3_font_size') || 1.2;
+            document.documentElement.style.setProperty('--zekr-size', s + 'rem');
+            document.getElementById('font-slider').value = s;
+        }
+        function changeFontSize(v) {
+            document.documentElement.style.setProperty('--zekr-size', v + 'rem');
+            localStorage.setItem('m3_font_size', v);
+        }
+
+        function render() {
+            const container = document.getElementById('main-container');
+            const header = document.getElementById('header');
+            container.innerHTML = '';
+            
+            let hTitle = currentView === 'home' ? 'أذكار' : getTitle(currentView);
+            let hLeft = ['morning','evening','sleep'].includes(currentView) ? `<button class="m3-icon-button" onclick="goBack()"><i class="fas fa-arrow-right"></i></button>` : `<h1 style="font-size:1.5rem; font-weight:800">${hTitle}</h1>`;
+            let hRight = currentView === 'prayers' ? `<button class="m3-icon-button" onclick="toggleNotifications()"><i class="${notificationsEnabled?'fas fa-bell notif-active':'far fa-bell-slash'}"></i></button>` : `<button class="m3-icon-button" onclick="openSettings()"><i class="fas fa-sliders"></i></button>`;
+
+            header.innerHTML = `${hLeft} ${['morning','evening','sleep'].includes(currentView)?'<h1>'+hTitle+'</h1>':''} ${hRight}`;
+
+            if(currentView === 'home') {
+                container.innerHTML = `
+                <div class="home-grid">
+                    <div class="category-card bg-morning" onclick="loadCategory('morning')"><div><h2>الصباح</h2><span>أذكار الاستيقاظ</span></div><i class="fas fa-sun fa-3x"></i></div>
+                    <div class="category-card bg-evening" onclick="loadCategory('evening')"><div><h2>المساء</h2><span>حصن المسلم</span></div><i class="fas fa-moon fa-3x"></i></div>
+                    <div class="category-card bg-sleep" onclick="loadCategory('sleep')"><div><h2>النوم</h2><span>سكينة الروح</span></div><i class="fas fa-bed fa-3x"></i></div>
+                </div>`;
+            } else if(currentView === 'prayers') {
+                container.innerHTML = '<div id="prayers-wrapper" class="loading" style="text-align:center; padding:40px"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+                initPrayerTimes();
+            } else {
+                let items = (currentView === 'favorites') ? [...azkarData.morning, ...azkarData.evening, ...azkarData.sleep].filter(i => favorites.includes(i.id)) : azkarData[currentView];
+                
+                items.forEach((item, index) => {
+                    const c = progress[item.id] !== undefined ? progress[item.id] : item.count;
+                    const div = document.createElement('div');
+                    div.className = `m3-card ${c===0?'completed':''}`;
+                    div.style.opacity = c===0? '0.6' : '1';
+                    
+                    div.onclick = (e) => {
+                        if(e.target.closest('button')) return;
+                        openZekrModal(item, index + 1);
+                    };
+
+                    div.innerHTML = `
+                        <div class="zekr-number-badge">${index + 1}</div>
+                        <div class="zekr-content">${item.text}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center">
+                            <div style="display:flex; gap:10px">
+                                <button onclick="toggleFav(${item.id})" style="border:none; background:none; color:${favorites.includes(item.id)?'#e74c3c':'var(--md-text)'}"><i class="fa${favorites.includes(item.id)?'s':'r'} fa-heart"></i></button>
+                                <button onclick="copyText('${item.text}')" style="border:none; background:none; color:var(--md-text)"><i class="far fa-copy"></i></button>
+                            </div>
+                            <button class="counter-btn ${c===0?'done':''}" onclick="dec(${item.id}, ${item.count})">${c===0?'✓':c}</button>
+                        </div>`;
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        function getTitle(v) { return {morning:'أذكار الصباح', evening:'أذكار المساء', sleep:'أذكار النوم', prayers:'المواقيت', favorites:'المفضلة'}[v]; }
+
+        function navigate(v) { 
+            if(v === currentView) return;
+            history.pushState({view: v}, '', ''); 
+            currentView = v; 
+            clearInterval(countdownInterval); 
+            updateNavUI();
+            render(); 
+        }
+
+        function loadCategory(c) { 
+            history.pushState({view: c}, '', ''); 
+            currentView = c; 
+            updateNavUI(); 
+            render(); 
+        }
+
+        function goBack() { history.back(); }
+
+        // --- منطق نافذة الذكر المنبثقة (Modal Logic) ---
+        function openZekrModal(item, index) {
+            currentModalZekr = item;
+            document.getElementById('modal-zekr-text').innerText = item.text;
+            document.getElementById('modal-zekr-number').innerText = '#' + index;
+            document.getElementById('modal-total-count').innerText = '/ ' + item.count;
+            
+            const favBtnIcon = document.querySelector('#modal-fav-btn i');
+            favBtnIcon.className = favorites.includes(item.id) ? 'fas fa-heart' : 'far fa-heart';
+            favBtnIcon.parentElement.style.color = favorites.includes(item.id) ? '#e74c3c' : 'var(--md-text)';
+
+            updateModalProgress();
+            
+            const modal = document.getElementById('zekr-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+
+        function closeZekrModal() {
+            const modal = document.getElementById('zekr-modal');
+            modal.classList.remove('show');
+            setTimeout(() => { modal.style.display = 'none'; }, 300);
+            render();
+        }
+
+        function modalTap() {
+            if (!currentModalZekr) return;
+            let c = progress[currentModalZekr.id] !== undefined ? progress[currentModalZekr.id] : currentModalZekr.count;
+            
+            if (c > 0) {
+                progress[currentModalZekr.id] = c - 1;
+                localStorage.setItem('m3_progress', JSON.stringify(progress));
+                
+                const circle = document.getElementById('progress-circle');
+                circle.style.strokeWidth = "12";
+                setTimeout(() => circle.style.strokeWidth = "8", 100);
+
+                if(navigator.vibrate) navigator.vibrate(50);
+                updateModalProgress();
+            } else {
+                 if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
+            }
+        }
+
+        function updateModalProgress() {
+            if (!currentModalZekr) return;
+            const current = progress[currentModalZekr.id] !== undefined ? progress[currentModalZekr.id] : currentModalZekr.count;
+            const total = currentModalZekr.count;
+            
+            const displayedCount = current; 
+            
+            document.getElementById('modal-current-count').innerText = displayedCount === 0 ? '✓' : displayedCount;
+            
+            const circle = document.getElementById('progress-circle');
+            const radius = circle.r.baseVal.value;
+            const circumference = radius * 2 * Math.PI;
+            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+            
+            const percentComplete = (total - current) / total;
+            const offset = circumference - (percentComplete * circumference);
+            
+            circle.style.strokeDashoffset = offset;
+            
+            circle.style.stroke = current === 0 ? 'var(--md-primary-container)' : 'var(--md-primary)';
+        }
+
+        function resetModalCounter() {
+            if (!currentModalZekr) return;
+            if(confirm('هل تود إعادة عداد هذا الذكر؟')) {
+                progress[currentModalZekr.id] = currentModalZekr.count;
+                localStorage.setItem('m3_progress', JSON.stringify(progress));
+                updateModalProgress();
+            }
+        }
+
+        function copyModalText() {
+            if(currentModalZekr) copyText(currentModalZekr.text);
+        }
+
+        function toggleFavModal() {
+            if(currentModalZekr) {
+                toggleFav(currentModalZekr.id);
+                const favBtnIcon = document.querySelector('#modal-fav-btn i');
+                favBtnIcon.className = favorites.includes(currentModalZekr.id) ? 'fas fa-heart' : 'far fa-heart';
+                favBtnIcon.parentElement.style.color = favorites.includes(currentModalZekr.id) ? '#e74c3c' : 'var(--md-text)';
+            }
+        }
+
+        // --- دوال المواقيت والوظائف الأساسية ---
+        function initPrayerTimes() {
+            if (!navigator.geolocation) {
+                document.getElementById('prayers-wrapper').innerHTML = "المتصفح لا يدعم تحديد الموقع";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(p => {
+                const lat = p.coords.latitude;
+                const lon = p.coords.longitude;
+
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ar`)
+                    .then(res => res.json())
+                    .then(data => {
+                        currentCityName = data.address.city || data.address.town || data.address.state || "موقعك الحالي";
+                        if(prayerTimesData) renderPrayersUI(); 
+                    })
+                    .catch(() => { currentCityName = "موقع غير محدد"; });
+
+                fetch(`https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=4`)
+                    .then(r => r.json())
+                    .then(d => { 
+                        prayerTimesData = d.data.timings; 
+                        renderPrayersUI(); 
+                        startCountdown(); 
+                    });
+
+            }, (err) => {
+                document.getElementById('prayers-wrapper').innerHTML = `
+                <div style="text-align:center; padding: 20px; color: var(--md-error);">
+                    <i class="fas fa-map-marker-slash fa-3x" style="margin-bottom:15px; opacity:0.5"></i>
+                    <p>يرجى تفعيل خدمة الموقع (GPS)</p>
+                </div>`;
+            });
+        }
+
+        function renderPrayersUI() {
+            if (!prayerTimesData) return;
+
+            const icons = { Fajr: 'fa-cloud-sun', Dhuhr: 'fa-sun', Asr: 'fa-cloud-sun-rain', Maghrib: 'fa-cloud-moon', Isha: 'fa-moon' };
+            const names = { Fajr: 'الفجر', Dhuhr: 'الظهر', Asr: 'العصر', Maghrib: 'المغرب', Isha: 'العشاء' };
+
+            let prayersListHTML = '';
+            
+            ['Fajr','Dhuhr','Asr','Maghrib','Isha'].forEach(k => {
+                const isActive = (k === nextPrayerKey) ? 'active' : '';
+                prayersListHTML += `
+                <div class="prayer-item ${isActive}" id="prayer-card-${k}">
+                    <div class="prayer-info">
+                        <div class="prayer-icon-box"><i class="fas ${icons[k]}"></i></div>
+                        <span class="prayer-name">${names[k]}</span>
+                    </div>
+                    <div class="prayer-time">${formatTime(prayerTimesData[k])}</div>
+                </div>`;
+            });
+
+            const html = `
+            <div style="animation: fadeIn 0.5s ease-out;">
+                <div class="category-card bg-morning" style="height:auto; flex-direction:column; margin-bottom:20px; align-items:flex-start; position:relative; overflow:hidden;">
+                    <i class="fas fa-mosque" style="position:absolute; left:-20px; bottom:-20px; font-size:8rem; opacity:0.2; transform:rotate(15deg)"></i>
+                    <div style="z-index:1; width:100%">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                            <span id="next-prayer-name" style="font-weight:bold; opacity:0.9">الصلاة القادمة</span>
+                            <div style="background:rgba(255,255,255,0.2); padding:4px 10px; border-radius:20px; font-size:0.8rem">
+                                <i class="fas fa-map-marker-alt"></i> ${currentCityName}
+                            </div>
+                        </div>
+                        <h2 id="countdown-timer" style="font-size:2.8rem; font-family:monospace; direction:ltr; text-align:right">--:--:--</h2>
+                    </div>
+                </div>
+                <div class="prayers-list">${prayersListHTML}</div>
+            </div>`;
+
+            document.getElementById('prayers-wrapper').innerHTML = html;
+        }
+
+        function formatTime(timeStr) { return timeStr.split(' ')[0]; }
+
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            const updateTimer = () => {
+                const now = new Date();
+                let next = null;
+                let nextKey = null;
+                const prayersOrder = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
+                
+                for (let k of prayersOrder) {
+                    let t = new Date(); 
+                    const [h,m] = prayerTimesData[k].split(':'); 
+                    t.setHours(h,m,0);
+                    if(t > now) { next = t; nextKey = k; break; }
+                }
+
+                if(!next) { 
+                    let t = new Date(); const [h,m] = prayerTimesData.Fajr.split(':'); 
+                    t.setDate(t.getDate()+1); t.setHours(h,m,0); 
+                    next = t; nextKey = 'Fajr';
+                }
+
+                if (nextPrayerKey !== nextKey) {
+                    nextPrayerKey = nextKey;
+                    document.querySelectorAll('.prayer-item').forEach(el => el.classList.remove('active'));
+                    const activeCard = document.getElementById(`prayer-card-${nextKey}`);
+                    if(activeCard) activeCard.classList.add('active');
+                    
+                    const names = { Fajr: 'الفجر', Dhuhr: 'الظهر', Asr: 'العصر', Maghrib: 'المغرب', Isha: 'العشاء' };
+                    const nextNameEl = document.getElementById('next-prayer-name');
+                    if(nextNameEl) nextNameEl.innerText = `المتبقي لصلاة ${names[nextKey]}`;
+                }
+
+                if(notificationsEnabled) {
+                     prayersOrder.forEach(k => {
+                        const [h,m] = prayerTimesData[k].split(':');
+                        if (now.getHours()==h && now.getMinutes()==m && now.getSeconds()==0) {
+                            new Notification("حان وقت الصلاة");
+                        }
+                     });
+                }
+
+                const diff = next - now;
+                const hh = Math.floor(diff/3600000), mm = Math.floor((diff%3600000)/60000), ss = Math.floor((diff%60000)/1000);
+                const timerEl = document.getElementById('countdown-timer');
+                if(timerEl) timerEl.innerText = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+            };
+            updateTimer();
+            countdownInterval = setInterval(updateTimer, 1000);
+        }
+
+        function toggleNotifications() {
+            if(!notificationsEnabled) Notification.requestPermission().then(p => { if(p==='granted') { notificationsEnabled=true; localStorage.setItem('m3_notif','true'); render(); } });
+            else { notificationsEnabled=false; localStorage.setItem('m3_notif','false'); render(); }
+        }
+
+        function dec(id, s) {
+            let c = progress[id] !== undefined ? progress[id] : s;
+            if(c > 0) { progress[id] = c - 1; localStorage.setItem('m3_progress', JSON.stringify(progress)); if(navigator.vibrate) navigator.vibrate(40); render(); }
+        }
+
+        function toggleFav(id) {
+            favorites.includes(id) ? favorites = favorites.filter(x=>x!==id) : favorites.push(id);
+            localStorage.setItem('m3_favorites', JSON.stringify(favorites)); render();
+        }
+
+        function copyText(t) {
+            const area = document.createElement('textarea');
+            area.value = t;
+            area.style.position = 'fixed'; area.style.left = '-9999px';
+            area.style.userSelect = 'text'; area.style.webkitUserSelect = 'text';
+            document.body.appendChild(area);
+            area.select();
+            try {
+                document.execCommand('copy');
+                const toast = document.getElementById('toast'); 
+                toast.className = 'show'; 
+                setTimeout(() => toast.className='', 2000);
+            } catch(e) { console.error(e); }
+            document.body.removeChild(area);
+        }
+
+        function openSettings() { document.getElementById('settings-sheet').classList.add('open'); document.getElementById('overlay').style.display='block'; }
+        function closeSettings() { document.getElementById('settings-sheet').classList.remove('open'); document.getElementById('overlay').style.display='none'; }
+        function resetAll() { if(confirm('تصفير كل العدادات؟')) { progress={}; localStorage.removeItem('m3_progress'); render(); closeSettings(); } }
+    </script>
+</body>
+</html>
